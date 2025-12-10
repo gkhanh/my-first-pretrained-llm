@@ -45,6 +45,14 @@ This system was built in layers, starting from the smallest unit (data) to the f
 ### 1. The Raw Material: Data Pipeline
 Before the model can learn, it needs to read. We process text from the C4 (Colossal Clean Crawled Corpus) dataset.
 
+```mermaid
+graph TD
+    A[Internet Text] --> B(Tokenizer)
+    B -- "The Translator" --> C(Data Stream)
+    C -- "The Conveyor Belt" --> D(The Model)
+```
+
+```text
 [ Internet Text ] 
        |
        v
@@ -57,6 +65,7 @@ Before the model can learn, it needs to read. We process text from the C4 (Colos
        |            to the model so it never runs out of memory.
        v
 [ The Model ]
+```
 
 ### 2. The Core Logic: The "Expert" System
 This is the unique part of this project. Instead of a standard Feed-Forward Network (FFN), we use a **MoE Layer**.
@@ -65,6 +74,7 @@ This is the unique part of this project. Instead of a standard Feed-Forward Netw
 
 **Flow Diagram of One Layer:**
 
+```text
        [ Input Token ] (e.g., The word "Apple")
               |
               v
@@ -85,6 +95,7 @@ This is the unique part of this project. Instead of a standard Feed-Forward Netw
       [ Weighted Sum ] <-- Combine answers from the chosen experts.
               |
       [ Output Vector ]
+```
 
 **The "Rich Get Richer" Fix:**
 To stop the Router from being lazy and sending *every* patient to Expert 1 (which would make Expert 1 overworked and the others useless), we added a **Load Balancing System** (based on Google Switch Transformer).
@@ -94,6 +105,7 @@ To stop the Router from being lazy and sending *every* patient to Expert 1 (whic
 ### 3. The Full Model Structure (The "Skyscraper")
 We stack these layers on top of each other to create deep understanding.
 
+```text
 [ Input ]
     |
 [ Embeddings ] (Turn token IDs into rich vectors)
@@ -109,6 +121,7 @@ We stack these layers on top of each other to create deep understanding.
    ... (Repeats for 14 Layers) ...
     |
 [ Output Head ] (Predicts the probability of the NEXT word)
+```
 
 ---
 
@@ -116,6 +129,7 @@ We stack these layers on top of each other to create deep understanding.
 
 How does the model actually learn? We use a loop that repeats millions of times.
 
+```text
    START
      |
      v
@@ -139,6 +153,7 @@ How does the model actually learn? We use a loop that repeats millions of times.
      |
      v
    REPEAT (Go to Step 1)
+```
 
 ---
 
@@ -172,9 +187,12 @@ To ensure maximum training speed on modern GPUs (Nvidia 30-series/40-series/A100
 *   **What it is:** A math mode on Nvidia Ampere+ GPUs that uses 19 bits for matrix multiplication instead of the standard 32.
 *   **Impact:** Massive speed increase (close to FP16) with precision comparable to FP32 for deep learning tasks.
 *   **Code:** 
+    ```python
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
-    ### 3. Flash Attention 2
+    ```
+
+### 3. Flash Attention 2
 *   **What it is:** A memory-efficient attention algorithm that scales linearly with sequence length.
 *   **Implementation:** Automatically triggered by `nn.MultiheadAttention` in PyTorch 2.0+ when running on supported hardware.
 
