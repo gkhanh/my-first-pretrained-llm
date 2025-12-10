@@ -45,13 +45,6 @@ This system was built in layers, starting from the smallest unit (data) to the f
 ### 1. The Raw Material: Data Pipeline
 Before the model can learn, it needs to read. We process text from the C4 (Colossal Clean Crawled Corpus) dataset.
 
-```mermaid
-graph TD
-    A[Internet Text] --> B(Tokenizer)
-    B -- "The Translator" --> C(Data Stream)
-    C -- "The Conveyor Belt" --> D(The Model)
-```
-
 ```text
 [ Internet Text ] 
        |
