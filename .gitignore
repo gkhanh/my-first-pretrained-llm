@@ -1,0 +1,18 @@
+# Model checkpoints
+checkpoint_latest.pth.tar
+*.pth
+*.tar
+
+# Training logs and progress
+training_log.csv
+training_progress.png
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+.env
+

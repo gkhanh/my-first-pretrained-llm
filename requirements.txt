@@ -1,0 +1,3 @@
+# requirements.txt
+torch>=2.0.0
+bitsandbytes>=0.40.0 # CRUCIAL for 8-bit AdamW optimizer
