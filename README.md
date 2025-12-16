@@ -214,6 +214,70 @@ To ensure maximum training speed on modern GPUs (Nvidia 30-series/40-series/A100
 
 ---
 
+## 📝 Using Your Trained Model
+
+After training is complete, you can use your model to generate text!
+
+### Basic Usage
+
+```bash
+python scripts/generate.py
+```
+
+This will start an interactive session where you can:
+- Enter prompts and get generated text
+- Adjust generation settings (temperature, max tokens, etc.)
+- Type 'q' or 'exit' to quit
+
+### Example Session
+
+```
+> Prompt: The weather today is
+Generated:
+The weather today is sunny and warm, perfect for a walk in the park.
+```
+
+### Generation Parameters
+
+You can adjust these settings by typing `settings` in the interactive session:
+
+- **Max tokens**: Maximum number of tokens to generate (default: 100)
+- **Temperature**: Controls randomness (0.1-2.0)
+  - Lower (0.1-0.5): More focused, deterministic
+  - Higher (0.7-2.0): More creative, diverse
+- **Top-k**: Limits sampling to top k most likely tokens (default: 50)
+
+### Programmatic Usage
+
+You can also use the model in your own Python code:
+
+```python
+from scripts.generate import load_model, generate_text
+
+# Load the model
+model, tokenizer = load_model()
+
+# Generate text
+prompt = "Once upon a time"
+full_text, generated = generate_text(
+    model, tokenizer, prompt,
+    max_new_tokens=100,
+    temperature=0.7,
+    top_k=50
+)
+
+print(f"Generated: {generated}")
+```
+
+### Model Files
+
+After training, you'll have:
+- `checkpoint_latest.pth.tar`: Model weights and training state
+- `training_log.csv`: Training history (loss, speed, etc.)
+- `khanh_tokenizer/`: Your custom tokenizer
+
+---
+
 ## Notes:
 - FP32, FP16, BF16, INT8 are numerical data formats used in deep learning, representing different levels of precision (bits) for numbers.
 https://ralphmao.github.io/ML-software-system/

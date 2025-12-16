@@ -22,12 +22,12 @@ def plot_training_progress(log_file="training_log.csv"):
         
         # Plot Loss
         plt.subplot(1, 2, 1)
-        plt.plot(df['token_count'] / 1e6, df['loss'], label='Training Loss', color='blue', alpha=0.7)
+        plt.plot(df['tokens'] / 1e6, df['loss'], label='Training Loss', color='blue', alpha=0.7)
         
         # Add a smoothed trend line (rolling average)
         if len(df) > 10:
             df['loss_smooth'] = df['loss'].rolling(window=10).mean()
-            plt.plot(df['token_count'] / 1e6, df['loss_smooth'], label='Smoothed (MA-10)', color='red', linewidth=2)
+            plt.plot(df['tokens'] / 1e6, df['loss_smooth'], label='Smoothed (MA-10)', color='red', linewidth=2)
             
         plt.title('Training Loss over Time')
         plt.xlabel('Tokens Processed (Millions)')
@@ -37,7 +37,7 @@ def plot_training_progress(log_file="training_log.csv"):
 
         # Plot Speed
         plt.subplot(1, 2, 2)
-        plt.plot(df['token_count'] / 1e6, df['speed'], label='Speed (t/s)', color='green', alpha=0.7)
+        plt.plot(df['tokens'] / 1e6, df['speed'], label='Speed (t/s)', color='green', alpha=0.7)
         plt.title('Training Speed')
         plt.xlabel('Tokens Processed (Millions)')
         plt.ylabel('Tokens / Second')

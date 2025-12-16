@@ -160,17 +160,26 @@ class KhanhLLM(nn.Module):
             self.layers.append(HybridTransformerBlock(is_moe_block=is_moe))
             
         self.output_layer = nn.Linear(D_MODEL, V_SIZE)
+        
+        # Cache for causal mask (avoid recreating every forward pass)
+        self._cached_mask = None
+        self._cached_seq_len = 0
 
     def forward(self, tokens):
         seq_len = tokens.size(1)
         positions = torch.arange(seq_len, device=tokens.device)
         x = self.token_embedding(tokens) + self.pos_embedding(positions)
         
-        # --- Create Causal Mask (The "Blindfold") ---
+        # --- Create Causal Mask (The "Blindfold") with Caching ---
         # Ensures token[i] can only see tokens[0...i]
-        # We generate a square matrix of size (seq_len, seq_len)
-        # The upper triangle (future) is -inf, the lower triangle (past) is 0.
-        mask = torch.triu(torch.full((seq_len, seq_len), float('-inf'), device=tokens.device), diagonal=1)
+        # Cache the mask to avoid recreating it every forward pass
+        if seq_len != self._cached_seq_len or self._cached_mask is None or self._cached_mask.device != tokens.device:
+            self._cached_mask = torch.triu(
+                torch.full((seq_len, seq_len), float('-inf'), device=tokens.device), 
+                diagonal=1
+            )
+            self._cached_seq_len = seq_len
+        mask = self._cached_mask
         
         # Keep track of auxiliary losses from all MoE layers
         total_aux_loss = 0.0
@@ -179,7 +188,8 @@ class KhanhLLM(nn.Module):
         for layer in self.layers:
             # We must use checkpointing carefully. 
             # The checkpoint function will return whatever the layer returns.
-            x, layer_aux_loss = checkpoint(layer, x, mask)
+            # use_reentrant=False is the newer, more efficient mode
+            x, layer_aux_loss = checkpoint(layer, x, mask, use_reentrant=False)
             
             # Accumulate the loss from all 14 layers (7 of which are MoE)
             total_aux_loss += layer_aux_loss
