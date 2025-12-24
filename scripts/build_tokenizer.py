@@ -1,72 +1,116 @@
 import os
+from dataclasses import dataclass
 from datasets import load_dataset
 from tokenizers import Tokenizer, models, trainers, pre_tokenizers, decoders, processors
 from transformers import PreTrainedTokenizerFast
 
-# Configuration
-VOCAB_SIZE = 50000  # Must match models/khanh_llm.py V_SIZE
-BATCH_SIZE = 1000
-TRAIN_SIZE = 2_000_000 # Number of examples to use for training the tokenizer (adjust as needed)
-SAVE_PATH = "khanh_tokenizer"
 
-def batch_iterator(dataset, batch_size=BATCH_SIZE):
-    for i in range(0, len(dataset), batch_size):
-        batch = dataset[i : i + batch_size]
-        yield [example["text"] for example in batch]
+@dataclass
+class TokenizerConfig:
+    vocab_size: int = 50000
+    batch_size: int = 1000
+    train_size: int = 2_000_000
+    save_path: str = "khanh_tokenizer"
+    dataset_name: str = "allenai/c4"
+    dataset_config: str = "en"
+    
+    special_tokens: list = None
+    
+    def __post_init__(self):
+        if self.special_tokens is None:
+            self.special_tokens = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"]
 
-def build_tokenizer():
-    print(f"Loading C4 dataset (first {TRAIN_SIZE} examples)...")
-    # Load a small subset of C4 for tokenizer training
-    dataset = load_dataset("allenai/c4", "en", split="train", streaming=True).take(TRAIN_SIZE)
+
+class DataLoader:
+    def __init__(self, config: TokenizerConfig):
+        self.config = config
     
-    # We need to materialize the dataset for the tokenizer trainer if we want to batch easily,
-    # or we can iterate directly. Converting to list for simplicity with the iterator.
-    print("Materializing dataset iterator...")
-    data_list = list(dataset) 
-    
-    # Initialize a BPE tokenizer
-    print("Initializing BPE Tokenizer...")
-    tokenizer = Tokenizer(models.BPE())
-    
-    # Use standard pre-tokenization (whitespace split, punctuation, etc.)
-    tokenizer.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=False)
-    
-    # Decoder for verifying reconstruction
-    tokenizer.decoder = decoders.ByteLevel()
-    
-    # Trainer
-    trainer = trainers.BpeTrainer(
-        vocab_size=VOCAB_SIZE,
-        special_tokens=["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"],
-        initial_alphabet=pre_tokenizers.ByteLevel.alphabet()
-    )
-    
-    # Train
-    print(f"Training tokenizer on {len(data_list)} documents...")
-    tokenizer.train_from_iterator(batch_iterator(data_list), trainer=trainer)
-    
-    # Post-processing (add template for special tokens if needed, usually mostly for BERT/RoBERTa)
-    # For a GPT-style model, we just need basic encoding.
-    
-    # Save simply as a JSON or wrap in Transformers
-    if not os.path.exists(SAVE_PATH):
-        os.makedirs(SAVE_PATH)
+    def load_dataset(self):
+        print(f"Loading {self.config.dataset_name} dataset (first {self.config.train_size} examples)...")
+        dataset = load_dataset(
+            self.config.dataset_name,
+            self.config.dataset_config,
+            split="train",
+            streaming=True
+        ).take(self.config.train_size)
         
-    tokenizer.save(os.path.join(SAVE_PATH, "tokenizer.json"))
-    print(f"Tokenizer saved to {SAVE_PATH}/tokenizer.json")
+        print("Materializing dataset iterator...")
+        return list(dataset)
+    
+    @staticmethod
+    def batch_iterator(dataset, batch_size):
+        for i in range(0, len(dataset), batch_size):
+            batch = dataset[i : i + batch_size]
+            yield [example["text"] for example in batch]
 
-    # Save as HuggingFace tokenizer for easy loading in train.py
-    fast_tokenizer = PreTrainedTokenizerFast(
-        tokenizer_object=tokenizer,
-        unk_token="[UNK]",
-        pad_token="[PAD]",
-        cls_token="[CLS]",
-        sep_token="[SEP]",
-        mask_token="[MASK]"
-    )
-    fast_tokenizer.save_pretrained(SAVE_PATH)
-    print(f"HuggingFace-compatible tokenizer saved to {SAVE_PATH}/")
+
+class TokenizerBuilder:
+    def __init__(self, config: TokenizerConfig):
+        self.config = config
+        self.tokenizer = None
+    
+    def initialize(self):
+        print("Initializing BPE Tokenizer...")
+        self.tokenizer = Tokenizer(models.BPE())
+        self.tokenizer.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=False)
+        self.tokenizer.decoder = decoders.ByteLevel()
+    
+    def train(self, data_list):
+        trainer = trainers.BpeTrainer(
+            vocab_size=self.config.vocab_size,
+            special_tokens=self.config.special_tokens,
+            initial_alphabet=pre_tokenizers.ByteLevel.alphabet()
+        )
+        
+        print(f"Training tokenizer on {len(data_list)} documents...")
+        self.tokenizer.train_from_iterator(
+            DataLoader.batch_iterator(data_list, self.config.batch_size),
+            trainer=trainer
+        )
+    
+    def save(self):
+        if not os.path.exists(self.config.save_path):
+            os.makedirs(self.config.save_path)
+        
+        self.tokenizer.save(os.path.join(self.config.save_path, "tokenizer.json"))
+        print(f"Tokenizer saved to {self.config.save_path}/tokenizer.json")
+    
+    def save_huggingface_format(self):
+        fast_tokenizer = PreTrainedTokenizerFast(
+            tokenizer_object=self.tokenizer,
+            unk_token="[UNK]",
+            pad_token="[PAD]",
+            cls_token="[CLS]",
+            sep_token="[SEP]",
+            mask_token="[MASK]"
+        )
+        fast_tokenizer.save_pretrained(self.config.save_path)
+        print(f"HuggingFace-compatible tokenizer saved to {self.config.save_path}/")
+
+
+class TokenizerTrainer:
+    def __init__(self, config: TokenizerConfig):
+        self.config = config
+        self.data_loader = DataLoader(config)
+        self.tokenizer_builder = TokenizerBuilder(config)
+    
+    def build(self):
+        data_list = self.data_loader.load_dataset()
+        
+        self.tokenizer_builder.initialize()
+        self.tokenizer_builder.train(data_list)
+        self.tokenizer_builder.save()
+        self.tokenizer_builder.save_huggingface_format()
+        
+        print("\n✓ Tokenizer build complete!")
+
+
+def main():
+    config = TokenizerConfig()
+    
+    trainer = TokenizerTrainer(config)
+    trainer.build()
+
 
 if __name__ == "__main__":
-    build_tokenizer()
-
+    main()
