@@ -1,37 +1,37 @@
 # KhanhLLM: Building my first Language Model
 
 
-## 🏰 The Core Philosophy ("Lego Castle" Architecture)
+## The Core Philosophy
 
 I developed the framework for this training efficiency using a **"Lego Castle" metaphor**, building a massive structure on a compact foundation by only constructing what is necessary, when it is necessary, i brainstorm my idea first, then rephrase this readme using AI to make my idea clearer, by asking AI how to train a LLM and use a metaphor to help me easier to understand the whole concept.
 
 Here is how my core ideas translate into the AI terminology used in this project:
 
-### 1. "The Hidden Rooms"
-> *Idea: "When user want to see the castle i only show the front face... unless they specify... then they can only see those things."*
+### Idea 1:
+> *"When user want to see the castle i only show the front face... unless they specify... then they can only see those things."*
 
 *   **Implementation:** **Sparse Mixture-of-Experts (MoE)**
 *   **How it works:** Instead of activating the entire brain for every word, the model uses a "Router" to select only the top 2 experts (specific rooms) out of 8 to handle the current token.
 *   **Research Paper:** [Shazeer et al., 2017 - Outrageously Large Neural Networks](https://arxiv.org/abs/1701.06538)
 
-### 2. "Temporary Walls"
-> *Idea: "When showing the castle don't keep every temporary wall only rebuild if needed."*
+### Idea 2
+> *"When showing the castle don't keep every temporary wall only rebuild if needed."*
 
 *   **Implementation:** **Activation Checkpointing**
 *   **How it works:** Instead of storing all intermediate calculations ("temporary walls") in memory, we delete them to save massive space ("ignoring gravity") and strictly rebuild (recompute) them only when needed during the backward pass.
 *   **Reference:** [Chen et al., 2016 - Training Deep Nets with Sublinear Memory Cost](https://arxiv.org/abs/1604.06174)
 
-### 3. "The Shelf"
-> *Idea: "Build certain type/parts of the castle first, then temporary store in the shelf... then assemble them together."*
+### Idea 3
+> *"Build certain type/parts of the castle first, then temporary store in the shelf... then assemble them together."*
 
 *   **Implementation:** **Gradient Accumulation**
 *   **The Metaphor:** Imagine you want to build a huge wall, but your hands are small (Low VRAM). If you place one Lego brick at a time, the wall might be crooked.
     *   **Normal Way:** Pick up 1 brick, place it, repeat. (Unstable, crooked wall).
-    *   **Gradient Accumulation:** Pick up 1 brick, put it in a bucket ("The Shelf"). Repeat 64 times. Then, take the full bucket and place 64 bricks at once.
+    *   **Gradient Accumulation:** Pick up 2 brick, put it in a bucket ("The Shelf"). Repeat 64 times. Then, take the full bucket and place 64 bricks at once.
 *   **Result:** You simulate having "Giant Hands" (Large Batch Size) even though you only have small hands. This makes the training stable and the wall straight.
 
-### 4. "The Upside-Down Pyramid"
-> *Idea: "Build small foundation then build up like upside down pyramid."*
+### Idea 4
+> *"Build small foundation then build up like upside down pyramid."*
 
 *   **Implementation:** **8-Bit Quantized Optimization**
 *   **How it works:** By using `AdamW8bit`, we compress the "foundation" (optimizer states) by 75%. This allows a consumer-grade GPU (small foundation) to support a massive 692-million parameter model (upside-down pyramid).
@@ -39,11 +39,11 @@ Here is how my core ideas translate into the AI terminology used in this project
 
 ---
 
-## 🧠 System Architecture & Design Flow
-This system was built in layers, starting from the smallest unit (data) to the full training loop. Here is the step-by-step design flow.
+## System Architecture & Design Flow
+This system was built in layers, starting from the smallest unit (data) to the full training loop. Here is the design flow diagram.
 
 ### 1. The Raw Material: Data Pipeline
-Before the model can learn, it needs to read. We process text from the C4 (Colossal Clean Crawled Corpus) dataset.
+Before the model can learn, it needs to read. I process text from the C4 (Colossal Clean Crawled Corpus) dataset.
 
 ```text
 [ Internet Text ] 
@@ -60,8 +60,8 @@ Before the model can learn, it needs to read. We process text from the C4 (Colos
 [ The Model ]
 ```
 
-### 2. The Core Logic: The "Expert" System
-This is the unique part of this project. Instead of a standard Feed-Forward Network (FFN), we use a **MoE Layer**.
+### 2. The "Expert" System
+Instead of a standard Feed-Forward Network (FFN), I use a **MoE Layer**.
 
 **Analogy:** Imagine a hospital. Instead of one general doctor trying to know everything, you have a **Receptionist (Router)** and **8 Specialists (Experts)**.
 
@@ -95,8 +95,8 @@ To stop the Router from being lazy and sending *every* patient to Expert 1 (whic
 *   **Rule:** If the Receptionist sends too many people to one doctor, they get penalized (Higher Loss).
 *   **Result:** The Receptionist learns to distribute work evenly.
 
-### 3. The Full Model Structure (The "Skyscraper")
-We stack these layers on top of each other to create deep understanding.
+### 3. The Full Model Structure
+I stack these layers on top of each other to create deep understanding.
 
 ```text
 [ Input ]
@@ -118,9 +118,9 @@ We stack these layers on top of each other to create deep understanding.
 
 ---
 
-## ⚙️ Training Process
+## Training Process
 
-How does the model actually learn? We use a loop that repeats millions of times.
+I use a loop that repeats millions of times.
 
 ```text
    START
@@ -150,7 +150,7 @@ How does the model actually learn? We use a loop that repeats millions of times.
 
 ---
 
-## 🚨 Critical Implementation Note: "The Crystal Ball" Bug
+## Critical Implementation Note: "The Crystal Ball" Bug
 *(Documenting a critical fix applied during development)*
 
 **The Error:**
@@ -167,7 +167,7 @@ Loss will now start much higher (~10.0) and decrease slowly. This is the correct
 
 ---
 
-## 🚀 Performance Optimizations (PyTorch 2.x)
+##  Performance Optimizations (PyTorch 2.x)
 
 To ensure maximum training speed on modern GPUs (Nvidia 30-series/40-series/A100), we utilize specific PyTorch 2.0+ features:
 
@@ -191,7 +191,7 @@ To ensure maximum training speed on modern GPUs (Nvidia 30-series/40-series/A100
 
 ---
 
-## 🧠 Model Specifications
+## Model Specifications
 
 | Feature | Value |
 | :--- | :--- |
@@ -205,7 +205,7 @@ To ensure maximum training speed on modern GPUs (Nvidia 30-series/40-series/A100
 
 ---
 
-## 🚀 Quick Start
+## How to start running the training session
 
 1.  **Install Requirements:** `pip install torch transformers datasets bitsandbytes`
 2.  **Build Tokenizer:** `python scripts/build_tokenizer.py`
@@ -214,7 +214,7 @@ To ensure maximum training speed on modern GPUs (Nvidia 30-series/40-series/A100
 
 ---
 
-## 📝 Using Your Trained Model
+## Using this Trained Model
 
 After training is complete, you can use your model to generate text!
 
@@ -228,14 +228,6 @@ This will start an interactive session where you can:
 - Enter prompts and get generated text
 - Adjust generation settings (temperature, max tokens, etc.)
 - Type 'q' or 'exit' to quit
-
-### Example Session
-
-```
-> Prompt: The weather today is
-Generated:
-The weather today is sunny and warm, perfect for a walk in the park.
-```
 
 ### Generation Parameters
 
@@ -282,4 +274,13 @@ After training, you'll have:
 - FP32, FP16, BF16, INT8 are numerical data formats used in deep learning, representing different levels of precision (bits) for numbers.
 https://ralphmao.github.io/ML-software-system/
 - This project implements a sophisticated Language Model using a **Mixture of Experts (MoE)** architecture. Think of it not as one giant brain, but as a team of specialists working together.
+
+### Result:
+
+**The current training result:**  
+The performance of the language model at this stage is quite poor. The generated answers are mostly irrelevant and often consist of very random or nonsensical text. This behavior is expected at this point, since the model is either not fully trained or lacks sufficient exposure to high-quality and diverse data. As a result, it hasn’t yet learned meaningful language patterns or how to generate coherent, on-topic responses.
+
+**Why does this happen?**  
+Training large language models—especially Mixture of Experts (MoE) models—requires both substantial data and careful tuning. In early training, or with limited or noisy data, the model tends to “babble”: it produces outputs that may seem random or off-topic, because it hasn’t yet learned which sequences make sense or how to reason about user inputs. Additionally, randomness (from high temperature, inadequate regularization, or not enough training steps) can amplify this effect, making outputs especially incoherent. Continued training, better data quality, and potentially adjusting hyperparameters will help the model develop more useful and relevant generation abilities over time.
+
 
