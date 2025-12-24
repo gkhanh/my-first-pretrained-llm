@@ -221,7 +221,7 @@ After training is complete, you can use your model to generate text!
 ### Basic Usage
 
 ```bash
-python scripts/generate.py
+python scripts/generate_text.py
 ```
 
 This will start an interactive session where you can:
@@ -244,7 +244,7 @@ You can adjust these settings by typing `settings` in the interactive session:
 You can also use the model in your own Python code:
 
 ```python
-from scripts.generate import load_model, generate_text
+from scripts.generate_text import load_model, generate_text
 
 # Load the model
 model, tokenizer = load_model()
