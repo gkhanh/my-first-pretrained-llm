@@ -96,12 +96,14 @@ class DataManager:
     @staticmethod
     def _get_tokenizer():
         if DataManager._tokenizer_cache is None:
-            if not os.path.exists(DataManager._tokenizer_path):
+            # Use default path if not set (for multiprocessing workers)
+            tokenizer_path = DataManager._tokenizer_path or "./khanh_tokenizer"
+            if not os.path.exists(tokenizer_path):
                 raise FileNotFoundError(
-                    f"Tokenizer not found at {DataManager._tokenizer_path}. "
+                    f"Tokenizer not found at {tokenizer_path}. "
                     "Please run 'python scripts/build_tokenizer.py' first."
                 )
-            DataManager._tokenizer_cache = AutoTokenizer.from_pretrained(DataManager._tokenizer_path)
+            DataManager._tokenizer_cache = AutoTokenizer.from_pretrained(tokenizer_path)
             if DataManager._tokenizer_cache.pad_token is None:
                 DataManager._tokenizer_cache.add_special_tokens({'pad_token': '[PAD]'})
         return DataManager._tokenizer_cache
@@ -109,9 +111,11 @@ class DataManager:
     @staticmethod
     def tokenize_and_chunk(examples):
         tok = DataManager._get_tokenizer()
+        # Use default seq_len if not set (for multiprocessing workers)
+        seq_len = DataManager._seq_len or 2048
         return tok(
             examples["text"],
-            max_length=DataManager._seq_len,
+            max_length=seq_len,
             truncation=True,
         )
 
@@ -436,6 +440,7 @@ class TrainingLoop:
                 self.current_loss = loss.detach()
             else:
                 self.current_loss = (self.current_loss * step + loss.detach()) / (step + 1)
+        return self.current_loss
 
     def _get_next_batch(self, data_iterator):
         try:
@@ -496,6 +501,8 @@ class TrainingLoop:
             if self.checkpoint_manager.total_rows_processed > 0 else 0
         )
         
+        if self.current_loss is None:
+            return  # Skip logging if loss hasn't been computed yet
         current_loss = self.current_loss.item() * self.config.gradient_accumulation_steps
         eta_str = self._calculate_eta(current_speed, avg_tokens_per_row)
         
