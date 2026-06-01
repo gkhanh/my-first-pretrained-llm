@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sed -i 's/name: str = \"khanh_350m\"/name: str = \"khanh_1b\"/g; *)",
+      "Bash(sed -i 's/Tests both the 150m \\(debug\\) and 350m configs/Tests both the 150m \\(debug\\) and 1b configs/g; *)",
+      "Bash(sed -i 's|runs/khanh_350m/|runs/khanh_1b/|g; *)"
+    ]
+  }
+}

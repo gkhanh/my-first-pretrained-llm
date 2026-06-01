@@ -1,0 +1,26 @@
+# khanh_1b.yaml — DEFAULT config for the 6,000 GPU-hour budget (RTX 5080, 16 GB)
+# ~1B dense parameters, Llama-style decoder with RoPE + GQA + SwiGLU + RMSNorm
+# Fits ~10.5 GB VRAM (bf16 + AdamW8bit + selective activation checkpointing, micro-batch 2-4)
+# Target: ~390B tokens over ~6,000 GPU-hours at ~18K tok/s
+# This is the ONE config you train for 2 years. Do not switch configs mid-run.
+# See docs/01-architecture.md and docs/04-rtx5080-tuning.md for full rationale.
+
+name: khanh_1b
+
+hidden_dim: 2048
+num_layers: 22
+num_heads_q: 16        # 128-dim per head
+num_heads_kv: 4        # GQA: 4× smaller KV cache
+ffn_dim: 5504          # SwiGLU intermediate (~2.69× hidden, must be multiple of 64)
+
+vocab_size: 49152      # StarCoder2 tokenizer (code-aware, includes FIM tokens)
+max_seq_len: 2048
+rope_base: 500000      # High base for better long-context extrapolation later
+
+dropout: 0.0
+tied_embeddings: true  # Ties output_layer.weight = token_embedding.weight (saves ~100M params)
+
+use_moe: false         # Dense by default. MoE lives in khanh_15b_moe.yaml
+num_experts: 8
+num_experts_active: 2
+aux_loss_weight: 0.001

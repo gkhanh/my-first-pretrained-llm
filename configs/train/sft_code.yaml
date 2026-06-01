@@ -1,0 +1,25 @@
+# sft_code.yaml — Stage-2 SFT: code + finance instruction tuning
+# Applied on top of a Stage-1 chat-SFT checkpoint.
+# ~2 epochs, with 10% Stage-1 replay to prevent forgetting.
+# See docs/08-finetuning.md for dataset details.
+
+run_name: khanh_1b_sft_code
+run_dir: runs
+
+micro_batch_size: 4
+gradient_accumulation_steps: 8
+
+peak_lr: 2.0e-5    # Much lower than pretrain; fine-tuning is delicate
+min_lr:  2.0e-6
+warmup_steps: 100
+lr_betas: [0.9, 0.95]
+lr_eps: 1.0e-8
+weight_decay: 0.01
+max_grad_norm: 1.0
+
+dtype: bfloat16
+num_epochs: 2
+
+use_wandb: false
+compile: true
+compile_mode: reduce-overhead

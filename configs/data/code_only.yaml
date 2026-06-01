@@ -1,0 +1,23 @@
+# code_only.yaml — Code-only data config for ablation experiments or FIM tuning
+
+seq_len: 2048
+shard_dir: data/shards/code_only
+tokenizer_path: data/tokenizers/starcoder2
+fim_rate: 0.5
+shard_size_tokens: 500_000_000
+seed: 42
+
+sources:
+  - name: stack_v2_code
+    hf_path: bigcode/the-stack-v2-train-smol-ids
+    weight: 0.75
+    language_filter: [Python, JavaScript, TypeScript, Go, Rust]
+
+  - name: stackexchange_prog
+    hf_path: HuggingFaceH4/stack-exchange-preferences
+    weight: 0.15
+
+  - name: stack_v2_docs
+    hf_path: bigcode/the-stack-v2-train-smol-ids
+    weight: 0.10
+    language_filter: [Markdown]

@@ -1,14 +1,14 @@
-import torch
-import torch.nn as nn
-import bitsandbytes as bnb
-import time
+import csv
+import multiprocessing
 import os
 import signal
 import sys
-import csv
-import multiprocessing
+import time
 from dataclasses import dataclass
-from typing import Optional, Tuple
+
+import bitsandbytes as bnb
+import torch
+import torch.nn as nn
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -16,10 +16,10 @@ torch.set_float32_matmul_precision('high')
 torch.backends.cudnn.benchmark = True
 
 from datasets import load_dataset
-from transformers import DataCollatorWithPadding, AutoTokenizer
+from models.khanh_llm import V_SIZE, KhanhLLM
+from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 from torch.utils.data import DataLoader
-from models.khanh_llm import KhanhLLM, V_SIZE
-from torch.optim.lr_scheduler import LinearLR, CosineAnnealingLR, SequentialLR
+from transformers import AutoTokenizer, DataCollatorWithPadding
 
 
 @dataclass
@@ -27,34 +27,34 @@ class Config:
     checkpoint_path: str = "checkpoint_latest.pth.tar"
     tokenizer_path: str = "./khanh_tokenizer"
     log_file: str = "training_log.csv"
-    
+
     batch_size: int = 2
     seq_len: int = 2048
     gradient_accumulation_steps: int = 64
     total_tokens_required: int = 999_999_999_999_999
     save_frequency_rows: int = 100_000
     log_frequency_tokens: int = 100_000
-    
+
     dataset_name: str = "allenai/c4"
     dataset_config: str = "en"
     target_rows: int = 10_000_000
-    
+
     base_lr: float = 5e-5
     min_lr: float = 5e-6
     warmup_factor: float = 0.03
     min_warmup_steps: int = 1000
     warmup_start_factor: float = 0.1
-    
+
     aux_loss_weight: float = 0.01
     max_grad_norm: float = 1.0
-    
+
     num_workers: int = 4
     prefetch_factor: int = 2
     tokenization_batch_size: int = 1000
-    
+
     optimizer_betas: tuple = (0.9, 0.95)
     optimizer_eps: float = 1e-8
-    
+
     @property
     def device(self):
         return torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -78,11 +78,11 @@ class DataManager:
                 f"Tokenizer not found at {self.config.tokenizer_path}. "
                 "Please run 'python scripts/build_tokenizer.py' first."
             )
-        
+
         self.tokenizer = AutoTokenizer.from_pretrained(self.config.tokenizer_path)
         if self.tokenizer.pad_token is None:
             self.tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-        
+
         self.data_collator = DataCollatorWithPadding(
             tokenizer=self.tokenizer,
             padding=True,
@@ -121,33 +121,33 @@ class DataManager:
 
     def load_data_stream(self, skip_rows: int = 0):
         remaining_rows = self.config.target_rows - skip_rows
-        
+
         if skip_rows > 0:
-            print(f"\n[PHASE 1] Loading C4 stream...")
+            print("\n[PHASE 1] Loading C4 stream...")
             print(f"    Skipping {skip_rows:,} already-processed rows...")
             print(f"    Processing remaining {remaining_rows:,} rows to reach {self.config.target_rows:,} total")
         else:
             print(f"\n[PHASE 1] Loading C4 stream, targeting {self.config.target_rows:,} rows...")
-        
+
         full_stream = load_dataset(
             self.config.dataset_name,
             self.config.dataset_config,
             split="train",
             streaming=True
         )
-        
+
         if skip_rows > 0:
             subset = full_stream.skip(skip_rows).take(remaining_rows)
         else:
             subset = full_stream.take(self.config.target_rows)
-        
+
         tokenized_stream = subset.map(
             self.tokenize_and_chunk,
             remove_columns=['text', 'timestamp', 'url'],
             batched=True,
             batch_size=self.config.tokenization_batch_size
         )
-        
+
         return tokenized_stream
 
     def create_dataloader(self, tokenized_stream):
@@ -172,14 +172,14 @@ class CheckpointManager:
     def save(self, final_save: bool = False):
         model_state = {k: v.cpu() for k, v in self.model.state_dict().items()}
         optimizer_state = self.optimizer.state_dict()
-        
+
         state = {
             'total_tokens_processed': self.total_tokens_processed,
             'total_rows_processed': self.total_rows_processed,
             'model_state_dict': model_state,
             'optimizer_state_dict': optimizer_state,
         }
-        
+
         try:
             torch.save(state, self.config.checkpoint_path, _use_new_zipfile_serialization=False)
         except Exception as e:
@@ -189,34 +189,34 @@ class CheckpointManager:
 
         status = "FINAL" if final_save else "PERIODIC"
         avg_tokens_per_row = self.total_tokens_processed / self.total_rows_processed if self.total_rows_processed > 0 else 0
-        
+
         print(f"\n--- {status} CHECKPOINT SAVED ---")
         print(f"    Rows: {self.total_rows_processed:,} / {self.config.target_rows:,} ({self.total_rows_processed/self.config.target_rows*100:.2f}%)")
         print(f"    Tokens: {self.total_tokens_processed/1e6:.2f}M")
         print(f"    Avg tokens/row: {avg_tokens_per_row:.1f}")
 
-    def load(self) -> Tuple[int, int]:
+    def load(self) -> tuple[int, int]:
         start_tokens = 0
         start_rows = 0
-        
+
         if os.path.isfile(self.config.checkpoint_path):
             print(f"--> Checkpoint found at {self.config.checkpoint_path}. Loading states...")
-            
+
             try:
                 checkpoint = torch.load(self.config.checkpoint_path, map_location=self.config.device, weights_only=False)
                 self.model.load_state_dict(checkpoint['model_state_dict'])
                 self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-                
+
                 start_tokens = checkpoint.get('total_tokens_processed', 0)
                 start_rows = checkpoint.get('total_rows_processed', 0)
-                
+
                 avg_tokens = start_tokens / start_rows if start_rows > 0 else 0
-                
-                print(f"--> Resuming training from:")
+
+                print("--> Resuming training from:")
                 print(f"    Rows: {start_rows:,} / {self.config.target_rows:,} ({start_rows/self.config.target_rows*100:.2f}%)")
                 print(f"    Tokens: {start_tokens/1e6:.2f}M")
                 print(f"    Historical avg tokens/row: {avg_tokens:.1f}")
-                
+
             except Exception as e:
                 print(f"Error loading checkpoint: {e}. Starting from scratch.")
                 if os.path.exists(self.config.checkpoint_path):
@@ -225,10 +225,10 @@ class CheckpointManager:
                 start_rows = 0
         else:
             print("--> No checkpoint found. Starting training from scratch.")
-        
+
         self.total_tokens_processed = start_tokens
         self.total_rows_processed = start_rows
-        
+
         return start_tokens, start_rows
 
 
@@ -240,27 +240,27 @@ class LRSchedulerManager:
         completed_steps = int((start_rows / self.config.batch_size) / self.config.gradient_accumulation_steps)
         total_steps = int((self.config.target_rows / self.config.batch_size) / self.config.gradient_accumulation_steps)
         remaining_steps = total_steps - completed_steps
-        
+
         warmup_steps = max(self.config.min_warmup_steps, int(self.config.warmup_factor * total_steps))
         warmup_remaining = max(0, warmup_steps - completed_steps)
-        
-        print(f"\n--- Learning Rate Schedule Configuration ---")
+
+        print("\n--- Learning Rate Schedule Configuration ---")
         print(f"  Completed steps: {completed_steps:,}")
         print(f"  Total steps: {total_steps:,}")
         print(f"  Remaining steps: {remaining_steps:,}")
         print(f"  Warmup steps: {warmup_steps:,} (remaining: {warmup_remaining:,})")
-        
+
         if warmup_remaining > 0:
-            print(f"  Current phase: Warmup (LR increasing)")
+            print("  Current phase: Warmup (LR increasing)")
             scheduler = self._create_warmup_scheduler(optimizer, warmup_steps, total_steps, completed_steps)
         else:
-            print(f"  Current phase: Cosine Decay (LR decreasing)")
+            print("  Current phase: Cosine Decay (LR decreasing)")
             scheduler = self._create_cosine_scheduler(optimizer, warmup_steps, total_steps, completed_steps)
-        
+
         current_lr = optimizer.param_groups[0]['lr']
         print(f"  Current learning rate: {current_lr:.2e}")
         print(f"  Final learning rate will be: {self.config.min_lr:.2e}\n")
-        
+
         return scheduler
 
     def _create_warmup_scheduler(self, optimizer, warmup_steps, total_steps, completed_steps):
@@ -344,7 +344,7 @@ class ProgressTracker:
             writer.writerow([rows, tokens, loss, speed, avg_tokens_per_row])
 
     def print_session_start(self, effective_batch_size: int, seq_len: int):
-        print(f"\n--- Starting Training Session ---")
+        print("\n--- Starting Training Session ---")
         print(f"Effective Batch Size: {effective_batch_size}")
         print(f"Max tokens per batch (truncated to SEQ_LEN): {seq_len}")
 
@@ -357,12 +357,12 @@ class ProgressTracker:
         total_tokens: int,
         avg_tokens_per_row: float
     ):
-        print(f"\n--- TRAINING SESSION COMPLETE (Phase 1) ---")
-        print(f"This session:")
+        print("\n--- TRAINING SESSION COMPLETE (Phase 1) ---")
+        print("This session:")
         print(f"    Duration: {session_hours:.2f} hours")
         print(f"    Rows processed: {session_rows:,}")
         print(f"    Tokens processed: {session_tokens/1e6:.2f}M")
-        print(f"\nTotal progress:")
+        print("\nTotal progress:")
         print(f"    Rows: {total_rows:,} / {self.config.target_rows:,} ({total_rows/self.config.target_rows*100:.2f}%)")
         print(f"    Tokens: {total_tokens/1e6:.2f}M")
         if total_rows > 0:
@@ -391,15 +391,15 @@ class TrainingLoop:
 
     def run(self):
         start_tokens, start_rows = self.checkpoint_manager.load()
-        
+
         tokenized_stream = self.data_manager.load_data_stream(skip_rows=start_rows)
         train_dataloader = self.data_manager.create_dataloader(tokenized_stream)
         data_iterator = iter(train_dataloader)
-        
+
         self.model.train()
-        
+
         self._initialize_tracking_variables()
-        
+
         self.progress_tracker.print_session_start(
             self.config.batch_size * self.config.gradient_accumulation_steps,
             self.config.seq_len
@@ -416,7 +416,7 @@ class TrainingLoop:
         self.speed_start_time = time.time()
         self.tokens_at_last_log = self.checkpoint_manager.total_tokens_processed
         self.rows_at_last_save = (
-            self.checkpoint_manager.total_rows_processed - 
+            self.checkpoint_manager.total_rows_processed -
             (self.checkpoint_manager.total_rows_processed % self.config.save_frequency_rows)
         )
         self.session_start_time = time.time()
@@ -455,11 +455,11 @@ class TrainingLoop:
     def _forward_pass(self, batch):
         inputs = batch['input_ids'].to(self.config.device)
         targets = batch['labels'].to(self.config.device)
-        
+
         outputs, aux_loss = self.model(inputs[:, :-1])
         main_loss = self.criterion(outputs.view(-1, V_SIZE), targets[:, 1:].reshape(-1))
         total_loss = main_loss + (self.config.aux_loss_weight * aux_loss)
-        
+
         return total_loss / self.config.gradient_accumulation_steps
 
     def _update_counters(self, batch):
@@ -486,26 +486,26 @@ class TrainingLoop:
     def _perform_logging(self, tokens_since_last_log):
         now = time.time()
         interval_seconds = now - self.speed_start_time
-        
+
         if interval_seconds > 0:
             current_speed = tokens_since_last_log / interval_seconds
         else:
             current_speed = 0
-        
+
         self.speed_start_time = now
         self.tokens_at_last_log = self.checkpoint_manager.total_tokens_processed
-        
+
         percent_complete = (self.checkpoint_manager.total_rows_processed / self.config.target_rows) * 100
         avg_tokens_per_row = (
             self.checkpoint_manager.total_tokens_processed / self.checkpoint_manager.total_rows_processed
             if self.checkpoint_manager.total_rows_processed > 0 else 0
         )
-        
+
         if self.current_loss is None:
             return  # Skip logging if loss hasn't been computed yet
         current_loss = self.current_loss.item() * self.config.gradient_accumulation_steps
         eta_str = self._calculate_eta(current_speed, avg_tokens_per_row)
-        
+
         self.progress_tracker.log_progress(
             self.checkpoint_manager.total_rows_processed,
             self.checkpoint_manager.total_tokens_processed,
@@ -530,9 +530,9 @@ class TrainingLoop:
         session_hours = (end_time - self.session_start_time) / 3600
         session_tokens = self.checkpoint_manager.total_tokens_processed - self.session_start_tokens
         session_rows = self.checkpoint_manager.total_rows_processed - self.session_start_rows
-        
+
         self.checkpoint_manager.save(final_save=True)
-        
+
         self.progress_tracker.print_session_complete(
             session_hours,
             session_rows,
@@ -606,13 +606,13 @@ class Trainer:
                 except Exception as e2:
                     print(f"Failed to save checkpoint: {e2}")
             sys.exit(0)
-        
+
         signal.signal(signal.SIGINT, signal_handler)
 
     def train(self):
         start_tokens, start_rows = self.checkpoint_manager.load()
         scheduler = self.scheduler_manager.create_scheduler(self.optimizer, start_rows)
-        
+
         training_loop = TrainingLoop(
             self.config,
             self.model,
@@ -622,14 +622,14 @@ class Trainer:
             self.data_manager,
             self.progress_tracker
         )
-        
+
         training_loop.run()
 
 
 def main():
     config = Config()
     print(f"Using device: {config.device}")
-    
+
     trainer = Trainer(config)
     trainer.setup()
     trainer.train()

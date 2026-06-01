@@ -1,0 +1,25 @@
+# khanh_700m.yaml — CONTINGENCY config for the 3,000 GPU-hour budget
+# ~700M dense parameters. Only use this if your real compute budget shrinks to ~3,000 hours.
+# Do NOT use this unless you have to — more parameters = smarter model.
+# At ~22K tok/s, 3,000 GPU-hours → ~240B tokens (~340 tokens/param, undertrained but usable).
+# See docs/05-roadmap.md "Contingency" section.
+
+name: khanh_700m
+
+hidden_dim: 1536
+num_layers: 20
+num_heads_q: 16        # 96-dim per head
+num_heads_kv: 4        # GQA: 4× smaller KV cache
+ffn_dim: 4096          # SwiGLU intermediate (~2.67× hidden)
+
+vocab_size: 49152
+max_seq_len: 2048
+rope_base: 500000
+
+dropout: 0.0
+tied_embeddings: true
+
+use_moe: false
+num_experts: 8
+num_experts_active: 2
+aux_loss_weight: 0.001

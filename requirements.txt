@@ -1,3 +1,40 @@
-# requirements.txt
-torch>=2.0.0
-bitsandbytes>=0.40.0 # CRUCIAL for 8-bit AdamW optimizer
+# Core ML framework
+torch>=2.2.0
+torchvision>=0.17.0
+
+# Quantized optimizer + 4-bit model loading
+bitsandbytes>=0.43.0
+
+# HuggingFace ecosystem
+transformers>=4.40.0
+tokenizers>=0.19.0
+datasets>=2.19.0
+accelerate>=0.29.0
+peft>=0.10.0
+safetensors>=0.4.3
+
+# FlashAttention (install separately if needed: pip install flash-attn --no-build-isolation)
+# flash-attn>=2.5.0
+
+# Configuration
+omegaconf>=2.3.0
+pyyaml>=6.0
+
+# Web backend
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+sse-starlette>=1.8.2
+pydantic>=2.7.0
+
+# Evaluation
+# humaneval and mbpp are loaded directly from HuggingFace datasets
+
+# Plotting + data
+pandas>=2.2.0
+matplotlib>=3.8.0
+numpy>=1.26.0
+
+# Dev tools
+pytest>=8.2.0
+ruff>=0.4.0
+mypy>=1.10.0

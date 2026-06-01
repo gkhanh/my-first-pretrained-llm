@@ -1,18 +1,46 @@
 # Model checkpoints
-checkpoint_latest.pth.tar
 *.pth
+*.pt
 *.tar
+*.pth.tar
+*.safetensors
 
-# Training logs and progress
+# Training logs and generated plots
 training_log.csv
 training_progress.png
+
+# Run outputs (checkpoints, logs, samples — all gitignored)
+runs/
+artifacts/
+wandb/
+
+# Pre-tokenized data shards (large binary files)
+data/shards/
 
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 
 # Virtual Environment
 venv/
+.venv/
 .env
 
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# IDE
+.vscode/
+.idea/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db

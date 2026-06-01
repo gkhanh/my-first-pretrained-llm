@@ -1,0 +1,24 @@
+# sft_chat.yaml — Stage-1 SFT: general chat instruction tuning
+# ~1 epoch on UltraChat + OpenHermes subset.
+# Run BEFORE sft_code.yaml to teach chat format first.
+
+run_name: khanh_1b_sft_chat
+run_dir: runs
+
+micro_batch_size: 4
+gradient_accumulation_steps: 8
+
+peak_lr: 2.0e-5
+min_lr:  2.0e-6
+warmup_steps: 200
+lr_betas: [0.9, 0.95]
+lr_eps: 1.0e-8
+weight_decay: 0.01
+max_grad_norm: 1.0
+
+dtype: bfloat16
+num_epochs: 1
+
+use_wandb: false
+compile: true
+compile_mode: reduce-overhead

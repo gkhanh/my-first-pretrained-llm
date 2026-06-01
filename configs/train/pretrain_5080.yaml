@@ -1,0 +1,46 @@
+# pretrain_5080.yaml — Pretraining config tuned for RTX 5080 (16 GB VRAM)
+# See docs/02-training-recipe.md and docs/04-rtx5080-tuning.md for full rationale.
+
+run_name: khanh_150m_smoketest
+# run_name: khanh_1b_run1  # ← uncomment for the real 1B run
+run_dir: runs
+
+# Batch / accumulation
+# Effective batch = 4 × 32 × 2048 = 262,144 tokens/step
+micro_batch_size: 4
+gradient_accumulation_steps: 32
+
+# LR schedule
+peak_lr: 3.0e-4
+min_lr:  3.0e-5
+warmup_steps: 2000
+lr_betas: [0.9, 0.95]
+lr_eps: 1.0e-8
+weight_decay: 0.1
+max_grad_norm: 1.0
+
+# Precision
+dtype: bfloat16
+
+# Activation checkpointing: "off" | "selective" | "full"
+# Start with "selective" (every other block); disable if VRAM < 12 GB after profiling.
+activation_checkpointing: selective
+
+# EMA
+ema_decay: 0.999
+
+# Checkpointing: save every 5B tokens (~35h on RTX 5080)
+save_every_tokens: 5_000_000_000
+keep_last_n: 10
+
+# Logging
+log_every_steps: 10
+eval_every_tokens: 2_000_000_000
+use_wandb: false   # CSV-only by default; set true to enable W&B
+
+# torch.compile
+compile: true
+compile_mode: default
+
+# Target: 390B tokens for khanh_1b (6,000 h budget)
+max_tokens: 390_000_000_000

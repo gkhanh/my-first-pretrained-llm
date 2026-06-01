@@ -1,0 +1,26 @@
+# finance_only.yaml — Finance-only data config
+# Used by prepare_finance_corpus.py and for finance-focused ablations.
+# See docs/09-finance-domain.md for source details and licensing notes.
+
+seq_len: 2048
+shard_dir: data/shards/finance_only
+tokenizer_path: data/tokenizers/starcoder2
+fim_rate: 0.0   # FIM not applied to finance text
+shard_size_tokens: 100_000_000
+seed: 42
+
+sources:
+  - name: sec_edgar
+    local_path: data/raw/finance/edgar
+    weight: 0.50
+    form_types: [10-K, 10-Q, 8-K]
+    start_year: 2000
+
+  - name: finance_news
+    local_path: data/raw/finance/news
+    weight: 0.30
+
+  - name: stackexchange_finance
+    hf_path: HuggingFaceH4/stack-exchange-preferences
+    weight: 0.20
+    subforums: [money, quant, personal-finance]

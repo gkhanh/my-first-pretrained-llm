@@ -1,0 +1,25 @@
+# khanh_150m.yaml — DEBUG / smoke-test config ONLY
+# ~160M parameters. Trains a checkpoint in ~1 hour.
+# Run this ONCE at the start to validate the full pipeline end-to-end.
+# After smoke tests pass, switch to khanh_1b.yaml and never look back.
+# See docs/05-roadmap.md "Months 1-2" section.
+
+name: khanh_150m
+
+hidden_dim: 768
+num_layers: 12
+num_heads_q: 12
+num_heads_kv: 4
+ffn_dim: 2048          # ~2.7× hidden for SwiGLU
+
+vocab_size: 49152
+max_seq_len: 2048
+rope_base: 10000.0
+
+dropout: 0.0
+tied_embeddings: true
+
+use_moe: false
+num_experts: 8
+num_experts_active: 2
+aux_loss_weight: 0.01

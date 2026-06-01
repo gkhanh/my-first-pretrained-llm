@@ -1,7 +1,8 @@
-import pandas as pd
-import matplotlib.pyplot as plt
 import os
-import sys
+
+import matplotlib.pyplot as plt
+import pandas as pd
+
 
 def plot_training_progress(log_file="training_log.csv"):
     if not os.path.exists(log_file):
@@ -11,7 +12,7 @@ def plot_training_progress(log_file="training_log.csv"):
     try:
         # Read the CSV file
         df = pd.read_csv(log_file)
-        
+
         # Check if empty
         if len(df) < 2:
             print("Not enough data to plot yet.")
@@ -19,16 +20,16 @@ def plot_training_progress(log_file="training_log.csv"):
 
         # Setup the plot
         plt.figure(figsize=(12, 6))
-        
+
         # Plot Loss
         plt.subplot(1, 2, 1)
         plt.plot(df['tokens'] / 1e6, df['loss'], label='Training Loss', color='blue', alpha=0.7)
-        
+
         # Add a smoothed trend line (rolling average)
         if len(df) > 10:
             df['loss_smooth'] = df['loss'].rolling(window=10).mean()
             plt.plot(df['tokens'] / 1e6, df['loss_smooth'], label='Smoothed (MA-10)', color='red', linewidth=2)
-            
+
         plt.title('Training Loss over Time')
         plt.xlabel('Tokens Processed (Millions)')
         plt.ylabel('Loss')
@@ -49,10 +50,10 @@ def plot_training_progress(log_file="training_log.csv"):
         plt.tight_layout()
         plt.savefig(output_file, dpi=150)
         print(f"Graph saved to {output_file}")
-        
+
         # Show plot window if possible (optional, might fail in pure terminal/WSL without X11)
-        # plt.show() 
-        
+        # plt.show()
+
     except Exception as e:
         print(f"An error occurred plotting the data: {e}")
 

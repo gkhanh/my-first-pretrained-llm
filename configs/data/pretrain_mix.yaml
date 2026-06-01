@@ -1,0 +1,45 @@
+# pretrain_mix.yaml — Full pretraining data mix
+# 65% code / 15% finance / 20% general text
+# Tunable: if finance perplexity lags after 150B tokens, raise finance to 0.25 and reduce code.
+# See docs/03-data-pipeline.md for source details and prep scripts.
+
+seq_len: 2048
+shard_dir: data/shards/pretrain
+eval_shard_dir: data/shards/eval
+tokenizer_path: data/tokenizers/starcoder2
+fim_rate: 0.5         # applied to code slice only
+shard_size_tokens: 500_000_000
+num_workers: 4
+
+seed: 42
+
+sources:
+  # === CODE (65%) ===
+  # Modern, high-quality, completely public Parquet datasets (No auth, no scripts)
+  - name: code_alpaca
+    hf_path: HuggingFaceH4/CodeAlpaca_20K
+    split: train
+    weight: 0.35
+
+  - name: magicoder_evol
+    hf_path: ise-uiuc/Magicoder-Evol-Instruct-110K
+    split: train
+    weight: 0.20
+
+  - name: stackexchange_code
+    hf_path: HuggingFaceH4/stack-exchange-preferences
+    split: train
+    weight: 0.10
+
+  # === FINANCE (15%) ===
+  # Public parquet financial texts
+  - name: finance_alpaca
+    hf_path: gbharti/finance-alpaca
+    split: train
+    weight: 0.15
+
+  # === GENERAL TEXT (20%) ===
+  - name: tinystories
+    hf_path: roneneldan/TinyStories
+    split: train
+    weight: 0.20

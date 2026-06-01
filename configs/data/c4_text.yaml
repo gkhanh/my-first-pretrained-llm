@@ -1,0 +1,14 @@
+# c4_text.yaml — Legacy C4 data config (used by the archived 692M run)
+# Kept for reproducibility so the old training_log.csv is interpretable.
+# NOT used by the new pretrain pipeline.
+
+seq_len: 2048
+tokenizer_path: runs/_archive_legacy_692m/khanh_tokenizer
+fim_rate: 0.0   # FIM was not used in the legacy run
+
+sources:
+  - name: c4_en
+    hf_path: allenai/c4
+    split: en
+    weight: 1.0
+    target_rows: 10_000_000
